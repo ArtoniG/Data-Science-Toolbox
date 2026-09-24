@@ -1,1 +1,92 @@
-.
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "custom-ds-toolbox"
+version = "0.1.0"
+description = "Enterprise-grade SDK for Modeling, MLOps, and AI orchestration."
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+    { name = "Guilherme Artoni" }
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Office/Business :: Financial"
+]
+
+# ZERO-DEPENDENCY CORE
+# Only the absolute minimum required to run the core math and schemas.
+dependencies = [
+    "numpy>=1.24.0",
+    "pandas>=2.0.0",
+    "scikit-learn>=1.3.0",
+    "pydantic>=2.5.0"       # For deterministic schemas and payload validation
+]
+
+# FEATURE FLAGS (Optional Dependencies)
+# Clients install only what they need using: pip install .[genai,viz]
+[project.optional-dependencies]
+viz = [
+    "matplotlib>=3.7.0",
+    "seaborn>=0.12.0"
+]
+api = [
+    "fastapi>=0.100.0",
+    "uvicorn>=0.23.0"
+]
+genai = [
+    "google-genai",
+    "instructor>=1.0.0",    # Deterministic LLM output guardrails
+    "langgraph>=0.1.0",     # Multi-agent state machine architectures
+    "langchain-core"
+]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-cov>=4.1.0",
+    "ruff>=0.3.0",
+    "mypy>=1.5.0",
+    "pre-commit>=3.4.0"
+]
+all = [
+    "custom-ds-toolbox[viz,api,genai,dev]"
+]
+
+# ------------------------------------------------------------------------------
+# TOOLING CONFIGURATION
+# ------------------------------------------------------------------------------
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["ds_toolbox*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+# E: pycodestyle errors, F: Pyflakes, I: isort, UP: pyupgrade
+select = ["E", "F", "I", "UP"]
+ignore = []
+
+[tool.ruff.lint.isort]
+known-first-party = ["ds_toolbox"]
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-ra -q --cov=ds_toolbox --cov-report=term-missing"
+testpaths = [
+    "tests",
+]
