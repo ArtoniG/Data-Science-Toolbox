@@ -1,1 +1,41 @@
-.
+# ruff.toml
+line-length = 100
+target-version = "py310"
+
+# Files and directories to exclude from linting
+exclude = [
+    ".git",
+    ".mypy_cache",
+    ".ruff_cache",
+    ".venv",
+    "__pycache__",
+    "build",
+    "dist",
+]
+
+[lint]
+# E: pycodestyle (standard formatting rules)
+# F: Pyflakes (catches undefined names, unused imports)
+# I: isort (automatically alphabetizes and groups imports)
+# UP: pyupgrade (forces modern syntax, e.g., dict | dict instead of Union)
+# B: flake8-bugbear (catches common bugs and design flaws)
+# SIM: flake8-simplify (suggests code simplifications)
+# C90: mccabe (cyclomatic complexity)
+# N: pep8-naming (forces standard variable and class naming conventions)
+select = ["E", "F", "I", "UP", "B", "SIM", "C90", "N"]
+ignore = []
+
+[lint.mccabe]
+# CRITICAL: Fails the build if a single function has more than 10 branching paths.
+# Forces developers to break complex logic into smaller, testable functions.
+max-complexity = 10
+
+[lint.isort]
+known-first-party = ["ds_toolbox"]
+combine-as-imports = true
+
+[format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
