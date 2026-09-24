@@ -1,1 +1,32 @@
-.
+# .pre-commit-config.yaml
+repos:
+  # Standard file hygiene checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+      - id: check-added-large-files
+        args: ['--maxkb=500']     # Prevents committing massive .csv or .pkl files accidentally
+      - id: detect-private-key    # Blocks commits containing GCP keys, AWS secrets, or SSH keys
+
+  # Rust-based Ruff Linter & Formatter (Runs in milliseconds)
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.3.0
+    hooks:
+      # Run the linter and automatically fix minor issues (like unused imports)
+      - id: ruff
+        args: [ --fix ]
+      # Auto-format the code (replaces Black)
+      - id: ruff-format
+
+  # Strict Static Type Checking
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.8.0
+    hooks:
+      - id: mypy
+        # Ensures mypy understands types from your core data structures
+        additional_dependencies: [pydantic, numpy, pandas]
+        args: ["--strict", "--ignore-missing-imports"]
