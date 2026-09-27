@@ -1,137 +1,162 @@
 """
 src/credit_toolbox/transformers/woe_encoder.py
 
-Scikit-Learn compatible Weight of Evidence (WOE) transformer.
-Designed to integrate seamlessly into `sklearn.pipeline.Pipeline` to prevent 
-data leakage during cross-validation and hyperparameter tuning.
+Weight of Evidence (WOE) and Information Value (IV) encoder for credit risk modeling.
+Transforms discrete bins or categorical variables into continuous risk weights based on 
+log-odds calculations, establishing a linear relationship with the logit of default probability.
 """
 
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
-from sklearn.base import BaseEstimator, TransformerMixin
-from sklearn.utils.validation import check_is_fitted
 
-from credit_toolbox.core.exceptions import TransformerError
-from credit_toolbox.core.types import ArrayLike
-from credit_toolbox.logging.decorators import log_execution_time
+from credit_toolbox.core.base import StatefulCreditTransformer
 
 
-class WOEEncoder(BaseEstimator, TransformerMixin):
+class WoeEncoder(StatefulCreditTransformer):
     """
-    Weight of Evidence (WOE) Encoder for categorical features.
+    Computes Weight of Evidence mapping for categorical features or binned numerics.
     
-    WOE evaluates the predictive power of a categorical bin in relation to a binary target.
-    Formula: $WOE = \\ln( \\% \\text{Non-Events} / \\% \\text{Events} )$
-    
-    If the target y=1 represents a "Bad" loan (Event) and y=0 represents a "Good" loan 
-    (Non-Event), a negative WOE implies higher risk, while a positive WOE implies lower risk.
+    Guarantees:
+    1. Laplace smoothing (regularization) to prevent divide-by-zero or log(0) on sparse bins.
+    2. Automatic Information Value (IV) calculation stored in model state for feature selection.
+    3. JSON-safe serialization by enforcing string-type mapping keys.
+    4. Safe handling of unseen categories during inference (mapping to neutral WOE = 0.0).
     """
 
     def __init__(
-        self, 
-        cols: Optional[List[str]] = None, 
-        epsilon: float = 1e-6, 
-        unknown_strategy: Union[float, str] = 0.0
+        self,
+        regularization: float = 0.001,
+        features: Optional[List[str]] = None,
     ):
         """
         Args:
-            cols: List of column names to encode. If None, encodes all `object` and `category` dtype columns.
-            epsilon: Small constant added to the numerator and denominator to prevent log(0) or division by zero.
-            unknown_strategy: What to do with categories in `transform` that were not seen in `fit`. 
-                              Defaults to 0.0 (neutral WOE).
+            regularization (float): Small constant added to bin counts to prevent zero-frequency problems.
+                Default is 0.001.
+            features (Optional[List[str]]): Specific features to encode. If None, encodes all categorical/object columns.
         """
-        self.cols = cols
-        self.epsilon = epsilon
-        self.unknown_strategy = unknown_strategy
+        self.regularization = regularization
+        self.features = features
 
-    @log_execution_time
-    def fit(self, X: pd.DataFrame, y: ArrayLike) -> "WOEEncoder":
+    def fit(self, X: pd.DataFrame, y: pd.Series) -> "WoeEncoder":
         """
-        Calculates and stores the WOE mappings for each specified categorical column based on the training data.
-        """
-        if not isinstance(X, pd.DataFrame):
-            raise TransformerError("WOEEncoder currently only supports pandas DataFrames as input.")
-
-        y_s = pd.Series(y)
-        if y_s.nunique() != 2:
-            raise TransformerError("WOEEncoder requires a binary target variable (exactly 2 unique classes).")
-
-        # Automatically select categorical columns if none are provided
-        if self.cols is None:
-            self.cols_ = X.select_dtypes(include=['object', 'category']).columns.tolist()
-        else:
-            self.cols_ = self.cols
-
-        if not self.cols_:
-            raise TransformerError("No categorical columns found or specified to encode.")
-
-        self.woe_maps_: Dict[str, Dict[str, float]] = {}
+        Calculates the WOE for each category/bin and the overall Information Value (IV).
         
-        # Total counts of Events (1) and Non-Events (0) in the training target
-        total_events = y_s.sum()
-        total_non_events = len(y_s) - total_events
-
-        # Ensure totals are safe for division
-        safe_total_events = max(total_events, self.epsilon)
-        safe_total_non_events = max(total_non_events, self.epsilon)
-
-        for col in self.cols_:
-            if col not in X.columns:
-                raise TransformerError(f"Column '{col}' not found in the input DataFrame.")
-
-            # Combine feature and target to easily group by category
-            df_temp = pd.DataFrame({'feature': X[col], 'target': y_s})
+        Args:
+            X (pd.DataFrame): Training features.
+            y (pd.Series): Binary default target (0 = Good/Non-Default, 1 = Bad/Default).
             
-            # Aggregate the number of events (1s) and non-events (0s) per category
-            grouped = df_temp.groupby('feature')['target'].agg(['sum', 'count'])
-            grouped.columns = ['events', 'total']
-            grouped['non_events'] = grouped['total'] - grouped['events']
+        Returns:
+            WoeEncoder: Fitted transformer instance.
+        """
+        X = self._validate_dataframe(X)
+        if y is None:
+            raise ValueError(f"[{self.__class__.__name__}] is a supervised transformer and requires a target array 'y'.")
 
-            # Calculate relative percentages
-            pct_events = grouped['events'] / safe_total_events
-            pct_non_events = grouped['non_events'] / safe_total_non_events
+        if self.features is None:
+            # Default to encoding all columns if no specific features are passed,
+            # assuming continuous variables were binned upstream
+            cols_to_fit = X.columns.tolist()
+        else:
+            cols_to_fit = [c for c in self.features if c in X.columns]
 
-            # Apply epsilon smoothing to prevent log(0)
-            pct_events_safe = np.maximum(pct_events, self.epsilon)
-            pct_non_events_safe = np.maximum(pct_non_events, self.epsilon)
+        self.woe_mapping_: Dict[str, Dict[str, float]] = {}
+        self.iv_: Dict[str, float] = {}
 
-            # Calculate WOE: ln( % Non-Events / % Events )
-            woe_values = np.log(pct_non_events_safe / pct_events_safe)
+        # Global event counts
+        total_bads = y.sum()
+        total_goods = y.count() - total_bads
+
+        for col in cols_to_fit:
+            # Cast to string to ensure JSON serialization compatibility later
+            x_series = X[col].astype(str)
             
-            # Store the mapping for this specific column
-            self.woe_maps_[col] = woe_values.to_dict()
+            # Combine into a temporary dataframe for fast grouped aggregation
+            temp_df = pd.DataFrame({"x": x_series, "y": y})
+            grouped = temp_df.groupby("x")["y"].agg(["count", "sum"])
+            
+            bads = grouped["sum"]
+            goods = grouped["count"] - bads
 
+            # Calculate distributions with Laplace smoothing
+            dist_bads = (bads + self.regularization) / (total_bads + 2 * self.regularization)
+            dist_goods = (goods + self.regularization) / (total_goods + 2 * self.regularization)
+
+            # Weight of Evidence: ln(Distribution of Goods / Distribution of Bads)
+            woe = np.log(dist_goods / dist_bads)
+            
+            # Information Value (IV) for the column
+            iv = (dist_goods - dist_bads) * woe
+            
+            # Store mapping (using native python floats for JSON)
+            self.woe_mapping_[col] = {k: float(v) for k, v in woe.items()}
+            self.iv_[col] = float(iv.sum())
+
+        self.is_fitted_ = True
         return self
 
-    @log_execution_time
     def transform(self, X: pd.DataFrame) -> pd.DataFrame:
         """
-        Applies the stored WOE mappings to the data. Replaces categories with their computed WOE continuous values.
-        """
-        check_is_fitted(self, 'woe_maps_')
-
-        if not isinstance(X, pd.DataFrame):
-            raise TransformerError("WOEEncoder requires a pandas DataFrame for transformation.")
-
-        X_transformed = X.copy()
-
-        for col in self.cols_:
-            if col not in X_transformed.columns:
-                raise TransformerError(f"Column '{col}' expected by WOEEncoder but not found in input.")
-
-            # Map categories to WOE values
-            mapping = self.woe_maps_[col]
+        Replaces categorical/binned values with their calculated WOE mappings.
+        
+        Args:
+            X (pd.DataFrame): Data to transform.
             
-            # Use pandas map. Unseen categories will become NaN.
-            X_transformed[col] = X_transformed[col].map(mapping)
+        Returns:
+            pd.DataFrame: DataFrame with WOE-encoded features.
+        """
+        X = self._validate_dataframe(X)
+        if not getattr(self, "is_fitted_", False):
+            raise ValueError(f"[{self.__class__.__name__}] must be fitted before calling transform().")
 
-            # Handle unknown categories (NaNs) created by the mapping
-            if X_transformed[col].isnull().any():
-                X_transformed[col] = X_transformed[col].fillna(self.unknown_strategy)
-                
-            # Coerce to float64 to ensure ML model compatibility
-            X_transformed[col] = X_transformed[col].astype(np.float64)
+        X_out = X.copy()
+        
+        for col, mapping in self.woe_mapping_.items():
+            if col in X_out.columns:
+                # Cast to string to match fit-time keys, map, and fill unseen with 0.0 (neutral risk)
+                X_out[col] = X_out[col].astype(str).map(mapping).fillna(0.0)
 
-        return X_transformed
+        return X_out
+
+    def export_state(self) -> Dict[str, Any]:
+        """
+        Extracts the WOE mappings and IV statistics into a JSON-serializable dictionary.
+        
+        Returns:
+            Dict[str, Any]: Serialized state dictionary.
+        """
+        if not getattr(self, "is_fitted_", False):
+            raise ValueError(f"[{self.__class__.__name__}] must be fitted before exporting state.")
+
+        return {
+            "woe_mapping_": self.woe_mapping_,
+            "iv_": self.iv_,
+            "hyperparams": {
+                "regularization": self.regularization,
+                "features": self.features,
+            },
+        }
+
+    @classmethod
+    def load_state(cls, state: Dict[str, Any]) -> "WoeEncoder":
+        """
+        Instantiates a pre-fitted WoeEncoder directly from serialized state.
+        
+        Args:
+            state (Dict[str, Any]): Serialized state dictionary.
+            
+        Returns:
+            WoeEncoder: Restored, ready-to-transform object.
+        """
+        hyperparams = state.get("hyperparams", {})
+        instance = cls(
+            regularization=hyperparams.get("regularization", 0.001),
+            features=hyperparams.get("features", None),
+        )
+        
+        instance.woe_mapping_ = state.get("woe_mapping_", {})
+        instance.iv_ = state.get("iv_", {})
+        instance.is_fitted_ = True
+        
+        return instance
