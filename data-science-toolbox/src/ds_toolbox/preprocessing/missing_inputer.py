@@ -1,117 +1,135 @@
 """
 src/credit_toolbox/transformers/missing_imputer.py
 
-Credit-specific missing value imputation for Scikit-Learn pipelines.
-Handles "Thin File" or "No Hit" scenarios by mapping missing numerical values 
-to specific out-of-range integers (e.g., -9999) and missing categorical values 
-to distinct string labels (e.g., "Missing"), preserving the predictive signal of missingness.
+Domain-specific missing value imputation for credit risk modeling.
+Replaces statistical smoothing (mean/median) with distinct risk-isolation values 
+(e.g., -9999 for numerics, 'Missing' for categoricals) to preserve 'Thin File' signals,
+while guaranteeing state serialization for auditability.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
 import pandas as pd
-from sklearn.base import BaseEstimator, TransformerMixin
-from sklearn.utils.validation import check_is_fitted
 
-from credit_toolbox.core.exceptions import TransformerError
-from credit_toolbox.core.types import ArrayLike
-from credit_toolbox.logging.decorators import log_execution_time
+from credit_toolbox.core.base import StatefulCreditTransformer
 
 
-class CreditMissingImputer(BaseEstimator, TransformerMixin):
+class CreditMissingImputer(StatefulCreditTransformer):
     """
-    Stateful imputation transformer designed for credit bureau data.
+    Imputes missing values using fixed out-of-distribution constants rather than 
+    sample statistics. This preserves the predictive power of missingness 
+    (e.g., lack of credit history) for downstream tree models or WOE binning.
     
-    Standard ML often uses mean/median imputation, which destroys the risk signal 
-    associated with missing data. In credit risk, a missing 'Months Since Oldest Trade' 
-    usually means the applicant has no credit history (Thin File). By filling with a 
-    constant like -9999, tree algorithms and binning functions can cleanly isolate 
-    the "missing" population into its own risk bucket.
+    Guarantees:
+    1. Vectorized fill operations for OOM prevention on large bureau files.
+    2. Preservation of feature names and DataFrame structures.
+    3. Full export/import state serialization for Phase 6 auditability.
     """
 
     def __init__(
-        self, 
-        cols: Optional[List[str]] = None, 
-        numerical_strategy: str = 'constant', 
-        numerical_constant: float = -9999.0,
-        categorical_constant: str = 'Missing'
+        self,
+        numeric_fill_value: Union[int, float] = -9999,
+        categorical_fill_value: str = "Missing",
+        features: Optional[List[str]] = None,
     ):
         """
         Args:
-            cols: Columns to impute. If None, applies to all columns containing NaNs.
-            numerical_strategy: 'constant', 'median', or 'mean'. 'constant' is highly 
-                                recommended for credit risk tree-based models.
-            numerical_constant: The out-of-range value used when strategy is 'constant'.
-            categorical_constant: The string label used to replace NaNs in object/category columns.
+            numeric_fill_value (Union[int, float]): Constant to replace NaNs in numeric columns. Default is -9999.
+            categorical_fill_value (str): Constant to replace NaNs in object/category columns. Default is 'Missing'.
+            features (Optional[List[str]]): Specific features to impute. If None, imputes all columns.
         """
-        if numerical_strategy not in ['constant', 'median', 'mean']:
-            raise ValueError("numerical_strategy must be one of: 'constant', 'median', 'mean'.")
+        self.numeric_fill_value = numeric_fill_value
+        self.categorical_fill_value = categorical_fill_value
+        self.features = features
 
-        self.cols = cols
-        self.numerical_strategy = numerical_strategy
-        self.numerical_constant = numerical_constant
-        self.categorical_constant = categorical_constant
-
-    @log_execution_time
-    def fit(self, X: pd.DataFrame, y: Optional[ArrayLike] = None) -> "CreditMissingImputer":
+    def fit(self, X: pd.DataFrame, y: Optional[pd.Series] = None) -> "CreditMissingImputer":
         """
-        Calculates and stores the imputation values for each column based on the training data.
+        Learns the datatypes of the target columns and maps them to their respective fill values.
+        
+        Args:
+            X (pd.DataFrame): Training features.
+            y (Optional[pd.Series]): Ignored, present for Scikit-Learn pipeline compatibility.
+            
+        Returns:
+            CreditMissingImputer: Fitted transformer instance.
         """
-        if not isinstance(X, pd.DataFrame):
-            raise TransformerError("CreditMissingImputer requires a pandas DataFrame.")
-
-        if self.cols is None:
-            self.cols_ = X.columns.tolist()
+        X = self._validate_dataframe(X)
+        
+        if self.features is None:
+            cols_to_fit = X.columns.tolist()
         else:
-            self.cols_ = self.cols
+            cols_to_fit = [c for c in self.features if c in X.columns]
 
-        # Dictionary to store the exact scalar fill value for each column
         self.fill_values_: Dict[str, Any] = {}
-
-        for col in self.cols_:
-            if col not in X.columns:
-                raise TransformerError(f"Column '{col}' not found in the DataFrame.")
-
-            # Identify if the column is numerical or categorical
-            is_numeric = pd.api.types.is_numeric_dtype(X[col])
-
-            if is_numeric:
-                if self.numerical_strategy == 'constant':
-                    self.fill_values_[col] = self.numerical_constant
-                elif self.numerical_strategy == 'median':
-                    # Calculate median strictly on training data
-                    med_val = X[col].median()
-                    # Fallback to constant if the entire training column is NaN
-                    self.fill_values_[col] = med_val if not pd.isna(med_val) else self.numerical_constant
-                elif self.numerical_strategy == 'mean':
-                    mean_val = X[col].mean()
-                    self.fill_values_[col] = mean_val if not pd.isna(mean_val) else self.numerical_constant
+        
+        for col in cols_to_fit:
+            if pd.api.types.is_numeric_dtype(X[col]):
+                self.fill_values_[col] = self.numeric_fill_value
             else:
-                # Categorical / Object column
-                self.fill_values_[col] = self.categorical_constant
+                self.fill_values_[col] = self.categorical_fill_value
 
+        self.is_fitted_ = True
         return self
 
-    @log_execution_time
     def transform(self, X: pd.DataFrame) -> pd.DataFrame:
         """
-        Applies the stored imputation dictionary to fill missing values in the data.
-        """
-        check_is_fitted(self, 'fill_values_')
-
-        if not isinstance(X, pd.DataFrame):
-            raise TransformerError("CreditMissingImputer requires a pandas DataFrame.")
-
-        X_transformed = X.copy()
+        Applies the learned fill values vectorially.
         
-        # Verify all expected columns exist before bulk imputation
-        missing_cols = [c for c in self.cols_ if c not in X_transformed.columns]
-        if missing_cols:
-            raise TransformerError(f"Columns expected but not found in input: {missing_cols}")
+        Args:
+            X (pd.DataFrame): Data to transform.
+            
+        Returns:
+            pd.DataFrame: Imputed DataFrame.
+        """
+        X = self._validate_dataframe(X)
+        if not getattr(self, "is_fitted_", False):
+            raise ValueError(f"[{self.__class__.__name__}] must be fitted before calling transform().")
 
-        # Pandas .fillna() with a dictionary is highly optimized in C and avoids 
-        # the performance penalty and fragmentation of iterating column-by-column.
-        X_transformed = X_transformed.fillna(value=self.fill_values_)
+        # Pandas fillna with a dictionary is highly optimized and only applies to columns 
+        # that exist in both the DataFrame and the dictionary, silently ignoring missing keys.
+        X_out = X.fillna(value=self.fill_values_)
+        
+        return X_out
 
-        return X_transformed
+    def export_state(self) -> Dict[str, Any]:
+        """
+        Extracts the explicit column-to-fill-value mapping.
+        
+        Returns:
+            Dict[str, Any]: Serialized state dictionary.
+        """
+        if not getattr(self, "is_fitted_", False):
+            raise ValueError(f"[{self.__class__.__name__}] must be fitted before exporting state.")
+
+        return {
+            "fill_values_": self.fill_values_,
+            "hyperparams": {
+                "numeric_fill_value": self.numeric_fill_value,
+                "categorical_fill_value": self.categorical_fill_value,
+                "features": self.features,
+            },
+        }
+
+    @classmethod
+    def load_state(cls, state: Dict[str, Any]) -> "CreditMissingImputer":
+        """
+        Instantiates a pre-fitted CreditMissingImputer directly from serialized state.
+        
+        Args:
+            state (Dict[str, Any]): Serialized state dictionary.
+            
+        Returns:
+            CreditMissingImputer: Restored, ready-to-transform object.
+        """
+        hyperparams = state.get("hyperparams", {})
+        instance = cls(
+            numeric_fill_value=hyperparams.get("numeric_fill_value", -9999),
+            categorical_fill_value=hyperparams.get("categorical_fill_value", "Missing"),
+            features=hyperparams.get("features", None),
+        )
+        
+        instance.fill_values_ = state.get("fill_values_", {})
+        instance.is_fitted_ = True
+        
+        return instance
