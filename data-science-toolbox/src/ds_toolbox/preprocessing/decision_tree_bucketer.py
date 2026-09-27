@@ -1,143 +1,180 @@
 """
-src/credit_toolbox/transformers/dt_bucketer.py
+src/credit_toolbox/transformers/decision_tree_bucketer.py
 
-Continuous feature discretization using a Decision Tree approach.
-Transforms continuous numerical features into optimal categorical bins 
-that maximize the separation of the binary target variable (Good vs. Bad).
-Designed to be chained immediately before the WOEEncoder.
+Supervised decision-tree discretization for continuous numerical features.
+Automatically discovers non-linear split boundaries that maximize default separation 
+(e.g., target = default / non-default) while maintaining strict state-serialization 
+capabilities for Phase 6 enterprise auditability.
 """
 
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
 import pandas as pd
-from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.tree import DecisionTreeClassifier
-from sklearn.utils.validation import check_is_fitted
 
-from credit_toolbox.core.exceptions import TransformerError
-from credit_toolbox.core.types import ArrayLike
-from credit_toolbox.logging.decorators import log_execution_time
+from credit_toolbox.core.base import StatefulCreditTransformer
 
 
-class DecisionTreeBucketer(BaseEstimator, TransformerMixin):
+class DecisionTreeBucketer(StatefulCreditTransformer):
     """
-    Supervised binning for numerical features using a Decision Tree Classifier.
+    Discretizes continuous numerical features into discrete ordinal bins using 1D decision trees.
     
-    Instead of arbitrary percentiles, this algorithm finds exact continuous cut-offs 
-    (e.g., Income < $45,230) that yield the highest information gain against the target.
+    Guarantees:
+    1. Supervised optimal binning based on default risk.
+    2. Preservation of feature names and column metadata.
+    3. Full export/import state serialization without needing the training dataset during audit.
     """
 
     def __init__(
-        self, 
-        cols: Optional[List[str]] = None, 
-        max_depth: int = 3, 
+        self,
+        max_leaf_nodes: Optional[int] = 5,
         min_samples_leaf: Union[int, float] = 0.05,
-        random_state: int = 42
+        criterion: str = "gini",
+        features: Optional[List[str]] = None,
     ):
         """
         Args:
-            cols: Numerical columns to bucket. If None, applies to all numeric columns.
-            max_depth: Maximum depth of the tree. A depth of 3 yields up to 8 bins (2^3).
-            min_samples_leaf: Minimum volume of data in a bin. If a float, it represents a fraction 
-                              of the total population (e.g., 0.05 = 5%). Prevents overfitting.
-            random_state: Seed for reproducibility in the tree algorithm.
+            max_leaf_nodes (Optional[int]): Maximum number of bins (leaf nodes) per feature. Default is 5.
+            min_samples_leaf (Union[int, float]): Minimum proportion or absolute count of samples required in a bin.
+                Default is 0.05 (5% minimum population per bin to avoid micro-segmentation).
+            criterion (str): Function to measure split quality ('gini' or 'entropy').
+            features (Optional[List[str]]): Specific features to bucket. If None, process all numerical columns.
         """
-        self.cols = cols
-        self.max_depth = max_depth
+        self.max_leaf_nodes = max_leaf_nodes
         self.min_samples_leaf = min_samples_leaf
-        self.random_state = random_state
+        self.criterion = criterion
+        self.features = features
 
-    @log_execution_time
-    def fit(self, X: pd.DataFrame, y: ArrayLike) -> "DecisionTreeBucketer":
+    def fit(self, X: pd.DataFrame, y: pd.Series) -> "DecisionTreeBucketer":
         """
-        Fits a shallow decision tree to each continuous feature to extract optimal split points.
-        """
-        if not isinstance(X, pd.DataFrame):
-            raise TransformerError("DecisionTreeBucketer requires a pandas DataFrame.")
+        Fits univariate decision trees on each target numerical column to extract split thresholds.
+        
+        Args:
+            X (pd.DataFrame): Training features.
+            y (pd.Series): Binary default target (0 = Non-Default, 1 = Default).
             
-        y_s = pd.Series(y)
-        if y_s.nunique() != 2:
-            raise TransformerError("DecisionTreeBucketer requires a binary target variable.")
-
-        # Default to all numeric columns if none specified
-        if self.cols is None:
-            self.cols_ = X.select_dtypes(include=[np.number]).columns.tolist()
-        else:
-            self.cols_ = self.cols
-
-        if not self.cols_:
-            raise TransformerError("No numerical columns found or specified for bucketing.")
-
-        self.bin_edges_: Dict[str, List[float]] = {}
-
-        for col in self.cols_:
-            if col not in X.columns:
-                raise TransformerError(f"Column '{col}' not found in the DataFrame.")
-
-            # Filter out NaNs for training the tree, as sklearn's default DecisionTree
-            # cannot natively route missing values without complex imputation.
-            valid_idx = X[col].notna()
-            if not valid_idx.any():
-                # If the entire column is NaN, set boundaries that encompass everything
-                self.bin_edges_[col] = [-np.inf, np.inf]
-                continue
-
-            X_subset = X.loc[valid_idx, [col]]
-            y_subset = y_s.loc[valid_idx]
-
-            tree = DecisionTreeClassifier(
-                max_depth=self.max_depth,
-                min_samples_leaf=self.min_samples_leaf,
-                random_state=self.random_state
+        Returns:
+            DecisionTreeBucketer: Fitted transformer instance.
+        """
+        X = self._validate_dataframe(X)
+        if y is None:
+            raise ValueError(
+                f"[{self.__class__.__name__}] is a supervised transformer and requires a target array 'y'."
             )
-            tree.fit(X_subset, y_subset)
 
-            # Extract thresholds from the underlying C structure of the tree.
-            # Scikit-learn uses -2 (Tree.UNDEFINED) to represent leaf nodes.
-            thresholds = tree.tree_.threshold
-            splits = thresholds[thresholds != -2]
+        # Determine target columns
+        if self.features is None:
+            cols_to_fit = X.select_dtypes(include=[np.number]).columns.tolist()
+        else:
+            cols_to_fit = [c for c in self.features if c in X.columns]
 
-            # Construct the definitive list of bin edges, bounded by infinity
-            boundaries = [-np.inf] + sorted(list(splits)) + [np.inf]
+        self.splits_: Dict[str, List[float]] = {}
+        
+        for col in cols_to_fit:
+            # Handle missing values during fitting by isolating non-null rows
+            valid_mask = X[col].notna() & y.notna()
+            if valid_mask.sum() == 0:
+                continue
+                
+            X_col = X.loc[valid_mask, [col]]
+            y_col = y.loc[valid_mask]
+
+            # Fit 1D Decision Tree
+            dt = DecisionTreeClassifier(
+                max_leaf_nodes=self.max_leaf_nodes,
+                min_samples_leaf=self.min_samples_leaf,
+                criterion=self.criterion,
+                random_state=42,
+            )
+            dt.fit(X_col, y_col)
+
+            # Extract interior split thresholds from tree internal nodes
+            tree_thresholds = dt.tree_.threshold[dt.tree_.feature >= 0]
             
-            # Remove any duplicate edges to prevent pd.cut from crashing
-            boundaries = sorted(list(set(boundaries)))
+            # Construct sorted bin boundaries with -infinity and +infinity
+            sorted_bounds = sorted(list(set(tree_thresholds)))
+            bins = [-np.inf] + sorted_bounds + [np.inf]
             
-            self.bin_edges_[col] = boundaries
+            self.splits_[col] = bins
 
+        self.is_fitted_ = True
         return self
 
-    @log_execution_time
     def transform(self, X: pd.DataFrame) -> pd.DataFrame:
         """
-        Discretizes the continuous features into string interval categories based on fitted edges.
-        """
-        check_is_fitted(self, 'bin_edges_')
+        Transforms continuous features into ordinal bin indices (0, 1, 2, ...).
         
-        if not isinstance(X, pd.DataFrame):
-            raise TransformerError("DecisionTreeBucketer requires a pandas DataFrame.")
+        Args:
+            X (pd.DataFrame): Data to transform.
+            
+        Returns:
+            pd.DataFrame: DataFrame with discretized ordinal features.
+        """
+        X = self._validate_dataframe(X)
+        if not getattr(self, "is_fitted_", False):
+            raise ValueError(f"[{self.__class__.__name__}] must be fitted before calling transform().")
 
-        X_transformed = X.copy()
+        X_out = X.copy()
+        
+        for col, bins in self.splits_.items():
+            if col in X_out.columns:
+                # Discretize continuous values into integer bin indices
+                # Preserves NaN values as NaN for downstream imputers
+                X_out[col] = pd.cut(
+                    X_out[col],
+                    bins=bins,
+                    labels=False,
+                    include_lowest=True
+                )
 
-        for col in self.cols_:
-            if col not in X_transformed.columns:
-                raise TransformerError(f"Column '{col}' expected but not found in input.")
+        return X_out
 
-            edges = self.bin_edges_[col]
+    def export_state(self) -> Dict[str, Any]:
+        """
+        Extracts learned split boundaries into a JSON-serializable dictionary.
+        
+        Returns:
+            Dict[str, Any]: Serialized state dictionary.
+        """
+        if not getattr(self, "is_fitted_", False):
+            raise ValueError(f"[{self.__class__.__name__}] must be fitted before exporting state.")
 
-            # pd.cut creates categorical intervals (e.g., "(-inf, 25000.0]").
-            # We cast to string so the WOEEncoder downstream can treat them as standard categorical variables.
-            X_transformed[col] = pd.cut(
-                X_transformed[col], 
-                bins=edges, 
-                include_lowest=True, 
-                duplicates='drop'
-            ).astype(str)
+        return {
+            "splits_": self.splits_,
+            "hyperparams": {
+                "max_leaf_nodes": self.max_leaf_nodes,
+                "min_samples_leaf": self.min_samples_leaf,
+                "criterion": self.criterion,
+                "features": self.features,
+            },
+        }
 
-            # pd.cut converts np.nan into the string "nan". 
-            # We explicitly replace it with "Missing" so the WOEEncoder can calculate 
-            # a specific Weight of Evidence penalty/bonus for missing data.
-            X_transformed[col] = X_transformed[col].replace('nan', 'Missing')
-
-        return X_transformed
+    @classmethod
+    def load_state(cls, state: Dict[str, Any]) -> "DecisionTreeBucketer":
+        """
+        Instantiates a pre-fitted DecisionTreeBucketer directly from serialized state.
+        
+        Args:
+            state (Dict[str, Any]): Serialized state dictionary.
+            
+        Returns:
+            DecisionTreeBucketer: Restored, ready-to-transform object.
+        """
+        hyperparams = state.get("hyperparams", {})
+        instance = cls(
+            max_leaf_nodes=hyperparams.get("max_leaf_nodes", 5),
+            min_samples_leaf=hyperparams.get("min_samples_leaf", 0.05),
+            criterion=hyperparams.get("criterion", "gini"),
+            features=hyperparams.get("features", None),
+        )
+        
+        # Reconstruct float representation (convert JSON lists back to float lists)
+        raw_splits = state.get("splits_", {})
+        restored_splits = {}
+        for col, bounds in raw_splits.items():
+            restored_splits[col] = [float(b) for b in bounds]
+            
+        instance.splits_ = restored_splits
+        instance.is_fitted_ = True
+        return instance
