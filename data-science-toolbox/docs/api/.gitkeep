@@ -1,1 +1,7 @@
-.
+# Stateful Transformers
+
+All transformers inherit from `StatefulCreditTransformer` and enforce strict Pandas DataFrame validation to preserve feature names for reason-code generation.
+
+::: credit_toolbox.transformers.woe_encoder.WOEEncoder
+::: credit_toolbox.transformers.missing_imputer.MissingImputer
+::: credit_toolbox.transformers.outlier_capper.OutlierCapper
