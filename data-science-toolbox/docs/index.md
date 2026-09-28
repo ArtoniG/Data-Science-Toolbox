@@ -1,4 +1,3 @@
-**`docs/index.md`** (The Documentation Homepage):
 ```markdown
 # Welcome to Credit Toolbox
 
