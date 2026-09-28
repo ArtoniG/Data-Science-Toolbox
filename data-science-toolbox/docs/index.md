@@ -1,3 +1,7 @@
+### 2. `docs/index.md` & `docs/api/` (The Developer Experience)
+With the README pointing to the docs, we establish the site structure (assuming MkDocs with Material theme and `mkdocstrings` for automatic docstring pulling).
+
+**`docs/index.md`** (The Documentation Homepage):
 ```markdown
 # Welcome to Credit Toolbox
 
