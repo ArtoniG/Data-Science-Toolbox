@@ -1,5 +1,5 @@
 """
-src/credit_toolbox/governance/model_card.py
+src/ds_toolbox/governance/model_card.py
 
 Generates production-ready compliance artifacts and reproducibility scripts.
 Extracts the fitted state of Scikit-Learn pipelines and custom transformers to create 
@@ -44,7 +44,7 @@ def reconstruct_pipeline(config_path: str = "pipeline_state.json") -> Pipeline:
         step_class = globals()[step_data['class_name']]
         
         if 'state' in step_data:
-            # Custom Stateful Credit Transformer (Phase 4)
+            # Custom Stateful Transformer (Phase 4)
             instance = step_class()
             if hasattr(instance, 'load_state'):
                 instance.load_state(step_data['state'])
@@ -146,11 +146,11 @@ class ArtifactExporter:
 
     def _generate_model_card(self, md_path: Path) -> None:
         """Generates a high-level Markdown compliance summary."""
-        md_content = f"""# Credit Risk Model Card
+        md_content = f"""# Model Card
         
 **Model Name:** {self.model_name}
 **Author:** Guilherme Artoni
-**Organization:** EFX - Advanced Analytics 
+**Organization:** Advanced Analytics 
 **Compilation Date:** 2026-09-27
 
 ## System Architecture
