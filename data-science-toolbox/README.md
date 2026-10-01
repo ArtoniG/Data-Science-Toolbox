@@ -1,9 +1,9 @@
-# Credit Toolbox
+# Data Science Toolbox
 
-[![CI/CD](https://github.com/your-org/credit-toolbox/actions/workflows/lint_and_test.yml/badge.svg)](https://github.com/your-org/credit-toolbox/actions)
-[![PyPI version](https://badge.fury.io/py/credit-toolbox.svg)](https://badge.fury.io/py/credit-toolbox)
+[![CI/CD](https://github.com/your-org/ds-toolbox/actions/workflows/lint_and_test.yml/badge.svg)](https://github.com/your-org/ds-toolbox/actions)
+[![PyPI version](https://badge.fury.io/py/ds-toolbox.svg)](https://badge.fury.io/py/ds-toolbox)
 
-An enterprise-grade Python SDK for credit risk modeling, enforcing strict governance, mathematically rigorous metrics, and declarative pipeline reproducibility.
+An enterprise-grade Python SDK for modeling, enforcing strict governance, mathematically rigorous metrics, and declarative pipeline reproducibility.
 
 ## Core Capabilities
 * Supervised & Stability Metrics (Gini, KS, IV, PSI).
@@ -12,7 +12,7 @@ An enterprise-grade Python SDK for credit risk modeling, enforcing strict govern
 
 ## Quickstart
 ```python
-from credit_toolbox import calculate_gini, WOEEncoder
+from ds_toolbox import calculate_gini, WOEEncoder
 import pandas as pd
 
 # 1. Initialize strict transformer
