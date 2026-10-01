@@ -1,10 +1,10 @@
 """
-src/credit_toolbox/eda/profiler.py
+src/ds_toolbox/eda/profiler.py
 
 Automated exploratory data analysis (EDA) for credit risk modeling.
 Generates comprehensive summary statistics, null ratios, cardinality checks, 
 and automated distribution drift reports using Population Stability Index (PSI).
-Designed to operate efficiently on multi-gigabyte bureau datasets.
+Designed to operate efficiently on multi-gigabyte datasets.
 """
 
 from typing import List, Optional
@@ -12,18 +12,18 @@ from typing import List, Optional
 import numpy as np
 import pandas as pd
 
-from credit_toolbox.core.exceptions import ProfilerError
-from credit_toolbox.logging.decorators import log_execution_time
-from credit_toolbox.metrics.stability import calculate_psi
+from ds_toolbox.core.exceptions import ProfilerError
+from ds_toolbox.logging.decorators import log_execution_time
+from ds_toolbox.metrics.stability import calculate_psi
 
 
 class DataProfiler:
     """
-    High-performance data profiling utility for credit modeling.
+    High-performance data profiling utility for modeling.
     
     Replaces resource-heavy external libraries (like ydata-profiling) that often 
-    crash on large financial datasets. Focuses strictly on the metadata required 
-    for credit scoring: missingness, cardinality, extreme values, and population drift.
+    crash on large datasets. Focuses strictly on the metadata required 
+    for modelling: missingness, cardinality, extreme values, and population drift.
     """
 
     @staticmethod
