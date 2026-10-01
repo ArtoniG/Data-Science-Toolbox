@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "custom-ds-toolbox"
+name = "ds-toolbox"
 version = "0.1.0"
 description = "Enterprise-grade SDK for Modeling, MLOps, and AI orchestration."
 readme = "README.md"
@@ -53,7 +53,7 @@ dev = [
     "pre-commit>=3.4.0"
 ]
 all = [
-    "custom-ds-toolbox[viz,api,genai,dev]"
+    "ds-toolbox[viz,api,genai,dev]"
 ]
 
 # ------------------------------------------------------------------------------
