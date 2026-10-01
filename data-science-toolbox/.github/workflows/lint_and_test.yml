@@ -37,7 +37,7 @@ jobs:
     - name: Execution Gate (Pytest Suite)
       run: |
         pytest tests/ \
-          --cov=src/credit_toolbox \
+          --cov=src/ds_toolbox \
           --cov-report=xml \
           --cov-report=term-missing \
           --fail-under=85
