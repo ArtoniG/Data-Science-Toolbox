@@ -1,21 +1,21 @@
 """
-src/credit_toolbox/core/exceptions.py
+src/ds_toolbox/core/exceptions.py
 
-Core exception hierarchy for the custom-credit-toolbox.
+Core exception hierarchy for the ds-toolbox.
 By subclassing a single root exception, we allow downstream client applications
 to catch and log all toolbox-specific errors systematically.
 """
 
-class CreditToolboxError(Exception):
+class DSToolboxError(Exception):
     """
-    Base exception for all custom errors within the custom-credit-toolbox.
-    Clients can use `except CreditToolboxError:` to safely catch any SDK-generated failure
+    Base exception for all custom errors within the ds-toolbox.
+    Clients can use `except DSToolboxError:` to safely catch any SDK-generated failure
     without catching standard Python runtime errors.
     """
     pass
 
 
-class DataValidationError(CreditToolboxError):
+class DataValidationError(DSToolboxError):
     """
     Raised when input data violates structural or statistical assumptions.
     Examples: Unexpected infinite values, all-null columns, or negative values in age fields.
@@ -23,7 +23,7 @@ class DataValidationError(CreditToolboxError):
     pass
 
 
-class SchemaMismatchError(CreditToolboxError):
+class SchemaMismatchError(DSToolboxError):
     """
     Raised when a DataFrame schema does not match the expected feature manifest.
     Examples: Missing required columns, or a feature passing as an object/string 
@@ -34,7 +34,7 @@ class SchemaMismatchError(CreditToolboxError):
         self.missing_columns = missing_columns or []
 
 
-class BinningError(CreditToolboxError):
+class BinningError(DSToolboxError):
     """
     Raised when Weight of Evidence (WOE) or quantile binning fails.
     Examples: A feature has zero variance (all identical values), or identical 
@@ -43,7 +43,7 @@ class BinningError(CreditToolboxError):
     pass
 
 
-class MetricCalculationError(CreditToolboxError):
+class MetricCalculationError(DSToolboxError):
     """
     Raised when a core statistical calculation fails.
     Examples: Zero division when calculating Information Value (IV), or 
@@ -52,7 +52,7 @@ class MetricCalculationError(CreditToolboxError):
     pass
 
 
-class ModelDriftError(CreditToolboxError):
+class ModelDriftError(DSToolboxError):
     """
     Raised when distribution drift metrics (like PSI or CSI) exceed critical thresholds,
     indicating the model is operating outside its training bounds.
@@ -64,7 +64,7 @@ class ModelDriftError(CreditToolboxError):
         self.threshold = threshold
 
 
-class GenAIGuardrailError(CreditToolboxError):
+class GenAIGuardrailError(DSToolboxError):
     """
     Raised when a Generative AI or LLM output fails deterministic validation.
     Examples: The LLM hallucinated a feature name, or returned a narrative 
