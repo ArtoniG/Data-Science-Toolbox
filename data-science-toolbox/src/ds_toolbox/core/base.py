@@ -1,9 +1,9 @@
 """
-src/credit_toolbox/core/base.py
+src/ds_toolbox/core/base.py
 
-Base classes and interfaces for the credit_toolbox package.
+Base classes and interfaces for the ds_toolbox package.
 Enforces strict contracts for state serialization and DataFrame preservation,
-which are mandatory for the Phase 6 Governance and Auditability requirements.
+which are mandatory for the Governance and Auditability requirements.
 """
 
 import abc
@@ -13,9 +13,9 @@ import pandas as pd
 from sklearn.base import BaseEstimator, TransformerMixin
 
 
-class StatefulCreditTransformer(BaseEstimator, TransformerMixin, abc.ABC):
+class StatefulTransformer(BaseEstimator, TransformerMixin, abc.ABC):
     """
-    Abstract base class for all proprietary credit risk transformers.
+    Abstract base class for all proprietary preprocessing transformers.
     
     Extends Scikit-Learn's native API to enforce two enterprise requirements:
     1. Feature Name Preservation: Strict Pandas DataFrame validation.
@@ -42,7 +42,7 @@ class StatefulCreditTransformer(BaseEstimator, TransformerMixin, abc.ABC):
         if not isinstance(X, pd.DataFrame):
             raise TypeError(
                 f"[{self.__class__.__name__}] requires a Pandas DataFrame. "
-                f"Raw NumPy arrays lose feature names, which violates credit risk "
+                f"Raw NumPy arrays lose feature names, which violates "
                 f"governance and reason-code generation requirements. Got {type(X)}."
             )
         return X
@@ -63,7 +63,7 @@ class StatefulCreditTransformer(BaseEstimator, TransformerMixin, abc.ABC):
 
     @classmethod
     @abc.abstractmethod
-    def load_state(cls, state: Dict[str, Any], **hyperparams) -> 'StatefulCreditTransformer':
+    def load_state(cls, state: Dict[str, Any], **hyperparams) -> 'StatefulTransformer':
         """
         Factory method to instantiate a "pre-fitted" transformer directly from a state dictionary.
         
@@ -75,6 +75,6 @@ class StatefulCreditTransformer(BaseEstimator, TransformerMixin, abc.ABC):
             **hyperparams: The initialization parameters (e.g., quantiles, bounds).
             
         Returns:
-            StatefulCreditTransformer: An instantiated, ready-to-transform object.
+            StatefulTransformer: An instantiated, ready-to-transform object.
         """
         pass
