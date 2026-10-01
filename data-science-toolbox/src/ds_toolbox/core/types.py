@@ -1,5 +1,5 @@
 """
-src/credit_toolbox/core/types.py
+src/ds_toolbox/core/types.py
 
 Core type aliases and deterministic Pydantic schemas.
 By strictly defining inputs and outputs here, we ensure that every metric and 
