@@ -1,5 +1,5 @@
 """
-tests/test_metrics/test_supervised.py
+tests/metrics/test_supervised.py
 
 Unit tests for supervised credit metrics: Kolmogorov-Smirnov (KS), 
 Gini Coefficient, and Information Value (IV).
@@ -9,8 +9,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from credit_toolbox.core.exceptions import DataValidationError
-from credit_toolbox.metrics.supervised import (
+from ds_toolbox.core.exceptions import DataValidationError
+from ds_toolbox.metrics.supervised import (
     calculate_gini,
     calculate_iv,
     calculate_ks,

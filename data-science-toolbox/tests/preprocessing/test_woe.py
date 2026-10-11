@@ -1,5 +1,5 @@
 """
-tests/test_transformers/test_woe_encoder.py
+tests/preprocessing/test_woe.py
 
 Comprehensive unit tests for the WOEEncoder.
 Guarantees mathematical correctness, Phase 1 DataFrame validation, and 
@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from credit_toolbox.transformers.woe_encoder import WOEEncoder
+from ds_toolbox.preprocessing.woe_encoder import WOEEncoder
 
 
 @pytest.fixture

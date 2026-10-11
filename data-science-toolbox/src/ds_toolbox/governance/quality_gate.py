@@ -1,5 +1,5 @@
 """
-src/credit_toolbox/governance/quality_gates.py
+src/ds_toolbox/governance/quality_gates.py
 
 Implements deterministic Quality Gates for Scikit-Learn Pipelines.
 Acts as an automated risk committee that intercepts the pipeline before serialization 
@@ -16,16 +16,16 @@ from sklearn.utils.validation import check_is_fitted
 from sklearn.exceptions import NotFittedError
 
 # Phase 1: Core Exceptions
-from credit_toolbox.core.exceptions import QualityGateError
+from ds_toolbox.core.exceptions import QualityGateError
 
 # Phase 3: Metrics
-from credit_toolbox.metrics.supervised import evaluate_monotonicity
+from ds_toolbox.metrics.supervised import evaluate_monotonicity
 
-# Phase 4: Transformers (Used for structural validation)
+# Phase 4: Preprocessing (Used for structural validation)
 # Assuming these were built in Phase 4 per the architecture blueprint
-from credit_toolbox.transformers.missing_imputer import MissingImputer
-from credit_toolbox.transformers.outlier_capper import OutlierCapper
-from credit_toolbox.transformers.woe_encoder import WOEEncoder
+from ds_toolbox.preprocessing.missing_imputer import MissingImputer
+from ds_toolbox.preprocessing.outlier_capper import OutlierCapper
+from ds_toolbox.preprocessing.woe_encoder import WOEEncoder
 
 logger = logging.getLogger(__name__)
 

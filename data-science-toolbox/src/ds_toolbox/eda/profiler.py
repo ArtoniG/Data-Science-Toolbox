@@ -1,7 +1,7 @@
 """
 src/ds_toolbox/eda/profiler.py
 
-Automated exploratory data analysis (EDA) for credit risk modeling.
+Automated exploratory data analysis (EDA) for modeling.
 Generates comprehensive summary statistics, null ratios, cardinality checks, 
 and automated distribution drift reports using Population Stability Index (PSI).
 Designed to operate efficiently on multi-gigabyte datasets.

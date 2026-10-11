@@ -1,7 +1,7 @@
 """
 tests/conftest.py
 
-Shared Pytest fixtures for the credit_toolbox test suite.
+Shared Pytest fixtures for the ds_toolbox test suite.
 Provides standardized, deterministic credit risk datasets, mappings, and pre-fitted 
 pipelines to ensure unit tests run quickly and consistently across all environments.
 """

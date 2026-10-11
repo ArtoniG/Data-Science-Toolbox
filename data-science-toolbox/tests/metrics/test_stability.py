@@ -1,5 +1,5 @@
 """
-tests/test_metrics/test_stability.py
+tests/metrics/test_stability.py
 
 Unit tests for Population Stability Index (PSI) monitoring.
 """
@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from credit_toolbox.metrics.stability import calculate_psi
+from ds_toolbox.metrics.stability import calculate_psi
 
 
 def test_psi_identical_distributions_is_zero():
