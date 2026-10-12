@@ -1,7 +1,7 @@
 """
-src/credit_toolbox/transformers/outlier_capper.py
+src/ds_toolbox/preprocessing/outlier_capper.py
 
-Domain-specific outlier treatment for credit risk modeling.
+Domain-specific outlier treatment for modeling.
 Caps extreme values (e.g., at the 1st and 99th percentiles) to prevent 
 heavy-tailed financial distributions (like revolving balances or incomes) 
 from destabilizing linear models, while ensuring strict state serialization.
@@ -12,10 +12,10 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 import pandas as pd
 
-from credit_toolbox.core.base import StatefulCreditTransformer
+from ds_toolbox.core.base import StatefulTransformer
 
 
-class OutlierCapper(StatefulCreditTransformer):
+class OutlierCapper(StatefulTransformer):
     """
     Caps continuous numeric features at specified lower and upper quantiles.
     

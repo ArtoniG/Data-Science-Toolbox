@@ -1,5 +1,5 @@
 """
-src/credit_toolbox/transformers/decision_tree_bucketer.py
+src/ds_toolbox/preprocessing/decision_tree_bucketer.py
 
 Supervised decision-tree discretization for continuous numerical features.
 Automatically discovers non-linear split boundaries that maximize default separation 
@@ -13,10 +13,10 @@ import numpy as np
 import pandas as pd
 from sklearn.tree import DecisionTreeClassifier
 
-from credit_toolbox.core.base import StatefulCreditTransformer
+from ds_toolbox.core.base import StatefulTransformer
 
 
-class DecisionTreeBucketer(StatefulCreditTransformer):
+class DecisionTreeBucketer(StatefulTransformer):
     """
     Discretizes continuous numerical features into discrete ordinal bins using 1D decision trees.
     

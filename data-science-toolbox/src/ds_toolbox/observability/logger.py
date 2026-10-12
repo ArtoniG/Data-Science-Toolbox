@@ -1,5 +1,5 @@
 """
-src/credit_toolbox/logging/logger.py
+src/ds_toolbox/observability/logger.py
 
 Enterprise-grade structured JSON logger.
 Instead of writing flat text lines (which are impossible to query in Datadog/GCP Cloud Logging),

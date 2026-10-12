@@ -1,5 +1,5 @@
 """
-src/credit_toolbox/viz/theme.py
+src/ds_toolbox/viz/theme.py
 
 Corporate visual identity configuration for matplotlib and seaborn.
 Standardizes colors, fonts, and chart layouts across all model reporting 
@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from matplotlib.colors import LinearSegmentedColormap
 
-class CreditTheme:
+class DSTheme:
     """
     Centralized configuration class for enterprise visualization.
     Manages global rcParams and semantic color palettes specific to credit risk.

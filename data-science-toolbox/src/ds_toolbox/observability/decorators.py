@@ -1,5 +1,5 @@
 """
-src/credit_toolbox/logging/decorators.py
+src/ds_toolbox/observability/decorators.py
 
 Decorators to non-invasively inject observability and audit trails into client code.
 By wrapping functions with these decorators, we capture execution times, success/failure 
@@ -10,8 +10,8 @@ import functools
 import time
 from typing import Any, Callable, TypeVar, cast
 
-from credit_toolbox.core.exceptions import CreditToolboxError
-from credit_toolbox.logging.logger import get_logger
+from ds_toolbox.core.exceptions import DSToolboxError
+from ds_toolbox.observability.logger import get_logger
 
 # Initialize the module-level logger
 logger = get_logger(__name__)
@@ -84,7 +84,7 @@ def audit_trail(event_name: str | None = None) -> Callable[[F], F]:
                 )
                 return result
                 
-            except CreditToolboxError as e:
+            except DSToolboxError as e:
                 # Controlled SDK Error (e.g., SchemaMismatchError, ModelDriftError)
                 duration_ms = round((time.perf_counter() - start_time) * 1000, 2)
                 logger.error(

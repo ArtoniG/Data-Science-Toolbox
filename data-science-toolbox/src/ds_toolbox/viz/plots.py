@@ -1,7 +1,7 @@
 """
-src/credit_toolbox/viz/plots.py
+src/ds_toolbox/viz/plots.py
 
-Enterprise-grade plotting functions for credit risk models.
+Enterprise-grade plotting functions for models.
 Generates standard validation charts (ROC, KS, Score Distributions, and PSI) 
 tightly integrated with the corporate visual identity defined in theme.py.
 """
@@ -14,8 +14,8 @@ import pandas as pd
 import seaborn as sns
 from sklearn.metrics import roc_auc_score, roc_curve
 
-from credit_toolbox.core.types import ArrayLike
-from credit_toolbox.viz.theme import CreditTheme
+from ds_toolbox.core.types import ArrayLike
+from ds_toolbox.viz.theme import DSTheme
 
 
 def plot_roc_curve(
@@ -27,7 +27,7 @@ def plot_roc_curve(
     """
     Plots the ROC curve and calculates the AUC score.
     """
-    CreditTheme.apply_theme()
+    DSTheme.apply_theme()
     
     if ax is None:
         _, ax = plt.subplots(figsize=(8, 6))
@@ -38,14 +38,14 @@ def plot_roc_curve(
     # Plot actual ROC curve using the Primary Corporate Blue
     ax.plot(
         fpr, tpr, 
-        color=CreditTheme.COLORS["primary"], 
+        color=DSTheme.COLORS["primary"], 
         label=f"Model (AUC = {auc_score:.3f})"
     )
     
     # Plot random baseline
     ax.plot(
         [0, 1], [0, 1], 
-        color=CreditTheme.COLORS["tertiary"], 
+        color=DSTheme.COLORS["tertiary"], 
         linestyle="--", 
         label="Random (AUC = 0.500)"
     )
@@ -70,7 +70,7 @@ def plot_ks_statistic(
     Plots the cumulative distribution of Good vs. Bad populations and highlights 
     the point of maximum separation (the KS Statistic).
     """
-    CreditTheme.apply_theme()
+    DSTheme.apply_theme()
     
     if ax is None:
         _, ax = plt.subplots(figsize=(8, 6))
@@ -91,22 +91,22 @@ def plot_ks_statistic(
     ks_prob = df.loc[ks_idx, 'prob']
 
     # Plot CDFs
-    ax.plot(df.index / len(df), df['cum_bads'], color=CreditTheme.COLORS["bad"], label="Cumulative Bads (Defaults)")
-    ax.plot(df.index / len(df), df['cum_goods'], color=CreditTheme.COLORS["good"], label="Cumulative Goods (Pays)")
+    ax.plot(df.index / len(df), df['cum_bads'], color=DSTheme.COLORS["bad"], label="Cumulative Bads (Defaults)")
+    ax.plot(df.index / len(df), df['cum_goods'], color=DSTheme.COLORS["good"], label="Cumulative Goods (Pays)")
     
     # Highlight KS point
     ax.vlines(
         ks_idx / len(df), 
         ymin=df.loc[ks_idx, 'cum_goods'], 
         ymax=df.loc[ks_idx, 'cum_bads'], 
-        color=CreditTheme.COLORS["warning"], 
+        color=DSTheme.COLORS["warning"], 
         linestyle=":", 
         linewidth=2.5,
         label=f"KS = {ks_stat:.3f} (at Top {ks_idx/len(df)*100:.1f}%)"
     )
 
     ax.set_title(title)
-    ax.set_xlabel("Population % (Sorted by Risk Score Descending)")
+    ax.set_xlabel("Population % (Sorted by Score Descending)")
     ax.set_ylabel("Cumulative Proportion")
     ax.legend(loc="lower right")
 
@@ -117,14 +117,14 @@ def plot_score_distribution(
     y_true: ArrayLike, 
     y_prob: ArrayLike, 
     bins: int = 50,
-    title: str = "Risk Score Distribution by Target", 
+    title: str = "Score Distribution by Target", 
     ax: Optional[plt.Axes] = None
 ) -> plt.Axes:
     """
     Plots normalized histograms/KDEs of model probabilities separated by the target class.
     Crucial for visualizing the overlap (grey area) between approved and rejected populations.
     """
-    CreditTheme.apply_theme()
+    DSTheme.apply_theme()
     
     if ax is None:
         _, ax = plt.subplots(figsize=(10, 6))
@@ -136,7 +136,7 @@ def plot_score_distribution(
         data=df, x='prob', hue='target', 
         stat='density', common_norm=False, 
         bins=bins, kde=True, 
-        palette={0: CreditTheme.COLORS["good"], 1: CreditTheme.COLORS["bad"]},
+        palette={0: DSTheme.COLORS["good"], 1: DSTheme.COLORS["bad"]},
         ax=ax, alpha=0.5, edgecolor=None
     )
 
@@ -146,8 +146,8 @@ def plot_score_distribution(
     
     # Custom legend
     handles = [
-        plt.Rectangle((0,0),1,1, color=CreditTheme.COLORS["good"], alpha=0.5),
-        plt.Rectangle((0,0),1,1, color=CreditTheme.COLORS["bad"], alpha=0.5)
+        plt.Rectangle((0,0),1,1, color=DSTheme.COLORS["good"], alpha=0.5),
+        plt.Rectangle((0,0),1,1, color=DSTheme.COLORS["bad"], alpha=0.5)
     ]
     ax.legend(handles, ["Good (Target=0)", "Bad (Target=1)"], loc="upper right")
 
@@ -163,7 +163,7 @@ def plot_psi_summary(
     Plots a horizontal bar chart of feature PSI values, color-coded by risk severity.
     Expects the DataFrame output from DataProfiler.calculate_population_drift().
     """
-    CreditTheme.apply_theme()
+    DSTheme.apply_theme()
     
     if ax is None:
         _, ax = plt.subplots(figsize=(10, max(6, len(psi_df) * 0.4)))
@@ -173,15 +173,15 @@ def plot_psi_summary(
 
     # Dynamic color mapping based on standard credit thresholds
     colors = df_sorted['PSI'].apply(
-        lambda x: CreditTheme.COLORS["bad"] if x >= 0.25 
-        else (CreditTheme.COLORS["warning"] if x >= 0.1 else CreditTheme.COLORS["good"])
+        lambda x: DSTheme.COLORS["bad"] if x >= 0.25 
+        else (DSTheme.COLORS["warning"] if x >= 0.1 else DSTheme.COLORS["good"])
     ).tolist()
 
     bars = ax.barh(df_sorted['Feature'], df_sorted['PSI'], color=colors)
 
     # Threshold markers
-    ax.axvline(0.10, color=CreditTheme.COLORS["warning"], linestyle="--", alpha=0.7, label="Slight Drift (0.10)")
-    ax.axvline(0.25, color=CreditTheme.COLORS["bad"], linestyle="--", alpha=0.7, label="Significant Drift (0.25)")
+    ax.axvline(0.10, color=DSTheme.COLORS["warning"], linestyle="--", alpha=0.7, label="Slight Drift (0.10)")
+    ax.axvline(0.25, color=DSTheme.COLORS["bad"], linestyle="--", alpha=0.7, label="Significant Drift (0.25)")
 
     ax.set_title(title)
     ax.set_xlabel("PSI Value")
@@ -196,7 +196,7 @@ def plot_psi_summary(
             xytext=(3, 0),  # 3 points horizontal offset
             textcoords="offset points",
             ha="left", va="center",
-            fontsize=9, color=CreditTheme.COLORS["text"]
+            fontsize=9, color=DSTheme.COLORS["text"]
         )
 
     # Remove Y-axis grid for cleaner look on horizontal bars

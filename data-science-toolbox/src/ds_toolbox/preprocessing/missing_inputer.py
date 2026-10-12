@@ -1,5 +1,5 @@
 """
-src/credit_toolbox/transformers/missing_imputer.py
+src/ds_toolbox/preprocessing/missing_imputer.py
 
 Domain-specific missing value imputation for credit risk modeling.
 Replaces statistical smoothing (mean/median) with distinct risk-isolation values 
@@ -12,10 +12,10 @@ from typing import Any, Dict, List, Optional, Union
 import numpy as np
 import pandas as pd
 
-from credit_toolbox.core.base import StatefulCreditTransformer
+from ds_toolbox.core.base import StatefulTransformer
 
 
-class CreditMissingImputer(StatefulCreditTransformer):
+class MissingImputer(StatefulTransformer):
     """
     Imputes missing values using fixed out-of-distribution constants rather than 
     sample statistics. This preserves the predictive power of missingness 
@@ -43,7 +43,7 @@ class CreditMissingImputer(StatefulCreditTransformer):
         self.categorical_fill_value = categorical_fill_value
         self.features = features
 
-    def fit(self, X: pd.DataFrame, y: Optional[pd.Series] = None) -> "CreditMissingImputer":
+    def fit(self, X: pd.DataFrame, y: Optional[pd.Series] = None) -> "MissingImputer":
         """
         Learns the datatypes of the target columns and maps them to their respective fill values.
         
@@ -52,7 +52,7 @@ class CreditMissingImputer(StatefulCreditTransformer):
             y (Optional[pd.Series]): Ignored, present for Scikit-Learn pipeline compatibility.
             
         Returns:
-            CreditMissingImputer: Fitted transformer instance.
+            MissingImputer: Fitted transformer instance.
         """
         X = self._validate_dataframe(X)
         
@@ -112,15 +112,15 @@ class CreditMissingImputer(StatefulCreditTransformer):
         }
 
     @classmethod
-    def load_state(cls, state: Dict[str, Any]) -> "CreditMissingImputer":
+    def load_state(cls, state: Dict[str, Any]) -> "MissingImputer":
         """
-        Instantiates a pre-fitted CreditMissingImputer directly from serialized state.
+        Instantiates a pre-fitted MissingImputer directly from serialized state.
         
         Args:
             state (Dict[str, Any]): Serialized state dictionary.
             
         Returns:
-            CreditMissingImputer: Restored, ready-to-transform object.
+            MissingImputer: Restored, ready-to-transform object.
         """
         hyperparams = state.get("hyperparams", {})
         instance = cls(

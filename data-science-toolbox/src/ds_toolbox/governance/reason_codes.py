@@ -1,5 +1,5 @@
 """
-src/credit_toolbox/governance/reason_codes.py
+src/ds_toolbox/governance/reason_codes.py
 
 Translates quantitative model feature contributions (like SHAP values or linear WOE impacts)
 into compliant, human-readable adverse action codes. 
@@ -15,19 +15,19 @@ import numpy as np
 import pandas as pd
 
 # Phase 1: Core Exceptions
-from credit_toolbox.core.exceptions import CreditToolboxError
+from ds_toolbox.core.exceptions import DSToolboxError
 
 logger = logging.getLogger(__name__)
 
 
-class ReasonCodeError(CreditToolboxError):
+class ReasonCodeError(DSToolboxError):
     """Raised when there is an issue generating adverse action reason codes."""
     pass
 
 
 class ReasonCodeExtractor:
     """
-    Deterministically extracts the top N penalizing features for each credit application 
+    Deterministically extracts the top N penalizing features for each
     and maps them to compliant regulatory reason codes.
     """
 

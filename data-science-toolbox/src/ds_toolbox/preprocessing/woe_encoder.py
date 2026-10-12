@@ -1,7 +1,7 @@
 """
-src/credit_toolbox/transformers/woe_encoder.py
+src/ds_toolbox/preprocessing/woe_encoder.py
 
-Weight of Evidence (WOE) and Information Value (IV) encoder for credit risk modeling.
+Weight of Evidence (WOE) and Information Value (IV) encoder for modeling.
 Transforms discrete bins or categorical variables into continuous risk weights based on 
 log-odds calculations, establishing a linear relationship with the logit of default probability.
 """
@@ -11,10 +11,10 @@ from typing import Any, Dict, List, Optional
 import numpy as np
 import pandas as pd
 
-from credit_toolbox.core.base import StatefulCreditTransformer
+from ds_toolbox.core.base import StatefulTransformer
 
 
-class WoeEncoder(StatefulCreditTransformer):
+class WoeEncoder(StatefulTransformer):
     """
     Computes Weight of Evidence mapping for categorical features or binned numerics.
     
