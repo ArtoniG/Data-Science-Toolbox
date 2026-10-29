@@ -1,0 +1,1 @@
+"""Pandera schemas and data contracts. Depends on io, config, and core only."""
