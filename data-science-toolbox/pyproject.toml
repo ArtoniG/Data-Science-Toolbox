@@ -16,67 +16,69 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
-    "Topic :: Office/Business :: Financial"
+    "Topic :: Office/Business :: Financial",
+    "Typing :: Typed",
 ]
 
 # ZERO-DEPENDENCY CORE
-# Only the absolute minimum required to run the core math and schemas.
 dependencies = [
     "numpy>=1.24.0",
     "pandas>=2.0.0",
     "scikit-learn>=1.3.0",
-    "pydantic>=2.5.0"       # For deterministic schemas and payload validation
+    "pydantic>=2.5.0",
 ]
 
-# FEATURE FLAGS (Optional Dependencies)
-# Clients install only what they need using: pip install .[genai,viz]
+# FEATURE FLAGS
 [project.optional-dependencies]
-viz = [
-    "matplotlib>=3.7.0",
-    "seaborn>=0.12.0"
-]
-api = [
-    "fastapi>=0.100.0",
-    "uvicorn>=0.23.0"
-]
+viz = ["matplotlib>=3.7.0", "seaborn>=0.12.0"]
+api = ["fastapi>=0.100.0", "uvicorn>=0.23.0"]
 genai = [
     "google-genai",
-    "instructor>=1.0.0",    # Deterministic LLM output guardrails
-    "langgraph>=0.1.0",     # Multi-agent state machine architectures
-    "langchain-core"
+    "instructor>=1.0.0",
+    "langgraph>=0.1.0",
+    "langchain-core",
 ]
 dev = [
     "pytest>=7.4.0",
     "pytest-cov>=4.1.0",
     "ruff>=0.3.0",
     "mypy>=1.5.0",
-    "pre-commit>=3.4.0"
+    "pre-commit>=3.4.0",
+    "import-linter>=2.0",
+    "bandit>=1.7.0",
 ]
 all = [
     "ds-toolbox[viz,api,genai,dev]"
 ]
 
 # ------------------------------------------------------------------------------
-# TOOLING CONFIGURATION
+# PACKAGING
 # ------------------------------------------------------------------------------
-
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["ds_toolbox*"]
 
+[tool.setuptools.package-data]
+ds_toolbox = ["py.typed"]
+
+# ------------------------------------------------------------------------------
+# RUFF
+# ------------------------------------------------------------------------------
 [tool.ruff]
 line-length = 100
 target-version = "py310"
 src = ["src", "tests"]
 
 [tool.ruff.lint]
-# E: pycodestyle errors, F: Pyflakes, I: isort, UP: pyupgrade
 select = ["E", "F", "I", "UP"]
 ignore = []
 
 [tool.ruff.lint.isort]
 known-first-party = ["ds_toolbox"]
 
+# ------------------------------------------------------------------------------
+# MYPY
+# ------------------------------------------------------------------------------
 [tool.mypy]
 python_version = "3.10"
 strict = true
@@ -84,9 +86,110 @@ warn_return_any = true
 warn_unused_configs = true
 ignore_missing_imports = true
 
+# ------------------------------------------------------------------------------
+# PYTEST
+# ------------------------------------------------------------------------------
 [tool.pytest.ini_options]
 minversion = "7.0"
 addopts = "-ra -q --cov=ds_toolbox --cov-report=term-missing"
-testpaths = [
-    "tests",
+testpaths = ["tests"]
+markers = [
+    "integration: tests that hit real services or the network (run in CI nightly)",
+    "slow: tests expected to take more than 1 second",
+]
+
+# ------------------------------------------------------------------------------
+# COVERAGE
+# ------------------------------------------------------------------------------
+[tool.coverage.run]
+branch = true
+source = ["ds_toolbox"]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 80
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+]
+
+# ------------------------------------------------------------------------------
+# IMPORT-LINTER — encodes AGENTS.md §4 as a CI-enforced contract
+# ------------------------------------------------------------------------------
+[tool.importlinter]
+root_package = "ds_toolbox"
+
+[[tool.importlinter.contracts]]
+name = "Main dependency chain (AGENTS.md §4)"
+type = "layers"
+layers = [
+    "ds_toolbox.agentic",
+    "ds_toolbox.mlops",
+    "ds_toolbox.metrics",
+    "ds_toolbox.transformers",
+    "ds_toolbox.validation",
+    "ds_toolbox.io",
+    "ds_toolbox.config",
+    "ds_toolbox.core",
+]
+
+[[tool.importlinter.contracts]]
+name = "viz depends only on core"
+type = "forbidden"
+source_modules = ["ds_toolbox.viz"]
+forbidden_modules = [
+    "ds_toolbox.agentic",
+    "ds_toolbox.mlops",
+    "ds_toolbox.metrics",
+    "ds_toolbox.transformers",
+    "ds_toolbox.validation",
+    "ds_toolbox.io",
+    "ds_toolbox.config",
+    "ds_toolbox.governance",
+    "ds_toolbox.observability",
+    "ds_toolbox.eda",
+]
+
+[[tool.importlinter.contracts]]
+name = "observability depends only on core"
+type = "forbidden"
+source_modules = ["ds_toolbox.observability"]
+forbidden_modules = [
+    "ds_toolbox.agentic",
+    "ds_toolbox.mlops",
+    "ds_toolbox.metrics",
+    "ds_toolbox.transformers",
+    "ds_toolbox.validation",
+    "ds_toolbox.io",
+    "ds_toolbox.config",
+    "ds_toolbox.governance",
+    "ds_toolbox.viz",
+    "ds_toolbox.eda",
+]
+
+[[tool.importlinter.contracts]]
+name = "governance uses metrics and below, not agentic/mlops/viz/eda"
+type = "forbidden"
+source_modules = ["ds_toolbox.governance"]
+forbidden_modules = [
+    "ds_toolbox.agentic",
+    "ds_toolbox.mlops",
+    "ds_toolbox.viz",
+    "ds_toolbox.eda",
+    "ds_toolbox.observability",
+]
+
+[[tool.importlinter.contracts]]
+name = "eda does not import modeling layers"
+type = "forbidden"
+source_modules = ["ds_toolbox.eda"]
+forbidden_modules = [
+    "ds_toolbox.agentic",
+    "ds_toolbox.mlops",
+    "ds_toolbox.metrics",
+    "ds_toolbox.transformers",
+    "ds_toolbox.governance",
+    "ds_toolbox.viz",
+    "ds_toolbox.observability",
 ]
