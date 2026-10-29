@@ -1,0 +1,69 @@
+name: Feature
+description: Add or modify behavior in ds-toolbox
+title: "feat(<module>): <short description>"
+labels: ["type:feature"]
+body:
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: One paragraph. What problem does this solve?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: module
+    attributes:
+      label: Module
+      options:
+        - core
+        - config
+        - io
+        - validation
+        - eda
+        - governance
+        - observability
+        - metrics
+        - transformers
+        - mlops
+        - agentic
+        - viz
+        - docs
+        - ci
+    validations:
+      required: true
+
+  - type: textarea
+    id: plan
+    attributes:
+      label: Plan
+      description: Reviewed before implementation. Fill all four fields.
+      value: |
+        **Approach:**
+
+        **Files to touch:**
+
+        **Tests to add:**
+
+        **Risks / unknowns:**
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Each item must be verifiable by a test or CI check.
+    validations:
+      required: true
+
+  - type: textarea
+    id: out_of_scope
+    attributes:
+      label: Out of scope
+
+  - type: input
+    id: depends_on
+    attributes:
+      label: Depends on
+      description: Issue numbers that must land first
