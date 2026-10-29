@@ -18,5 +18,5 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Initial extraction from the earlier `credit_toolbox` layout.
 - Modules: `core`, `eda`, `governance`, `observability`, `metrics`, `transformers`, `viz`.
 
-[Unreleased]: https://github.com/ArtoniG/Data-Science-Toolbox/ds-toolbox/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/ArtoniG/Data-Science-Toolbox/ds-toolbox/releases/tag/v0.1.0
+[Unreleased]: https://github.com/ArtoniG/Data-Science-Toolbox/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/ArtoniG/Data-Science-Toolbox/releases/tag/v0.1.0
