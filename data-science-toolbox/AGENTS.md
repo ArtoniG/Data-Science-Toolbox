@@ -1,6 +1,7 @@
-# AGENTS.md ds-toolbox
+# AGENTS.md — ds-toolbox
+
 > Read this file first. It is the single source of truth for how agents
-> (Copilot, Cursor, Claude, Aider) must work in this repository.
+> (Copilot, Cursor, Claude Code, Aider) must work in this repository.
 > If this file conflicts with any other doc, this file wins.
 > If a rule here is wrong, open an issue titled `AGENTS.md: <rule>`.
 
@@ -10,21 +11,21 @@
 
 `ds-toolbox` is an installable Python library of reusable, production-grade
 utilities for data science and ML engineering, with deep specialization in
-credit risk / financial modeling and growing coverage in MLOps and agentic
-systems.
+**credit risk / financial modeling** and growing coverage in **MLOps** and
+**agentic systems**.
 
-- **Owner:** Guilherme Artoni
-- **License:** see `LICENSE`
+- **Owner:** Artoni
+- **License:** proprietary
 - **Current version:** 0.1.0
-- **Python support:** >=3.10 (tests run on 3.10 and 3.11)
-- **PyPI package:** `ds-toolbox`
+- **Python support:** >=3.11
+- **Package name (PyPI):** `ds-toolbox`
 - **Import name:** `ds_toolbox`
-- **Purpose:** reusable IP for a solo data-science consultancy. Every module
-  must be defensible as "something a 6-year DS would pay to reuse."
+- **Repository purpose:** reusable IP for a solo data-science consultancy.
+  Every module must be defensible as "something a DS Company would pay to reuse."
 
 Non-goals (do not add these to core):
 - Application code, dashboards, or notebooks at the repo root.
-- Client-specific or PII-bearing content.
+- Anything client-specific or containing PII.
 - Vendored third-party libraries.
 
 ---
@@ -34,17 +35,18 @@ Non-goals (do not add these to core):
 1. **Never break the public API silently.** Any change to a public symbol
    (`__all__`, public function signature, class attribute) requires a
    CHANGELOG entry and, if pre-1.0, a note in the PR description.
-2. **`src/` layout is mandatory.** No top-level modules.
+2. **`src/` layout is mandatory.** No top-level modules, no `import ds_toolbox`
+   from the repo root without `pip install -e .`.
 3. **Every public module has a test.** PRs that add code without tests are
    rejected by CI.
 4. **Every public symbol has a docstring** (Google style). Private helpers
    (`_name`) do not require docstrings but should be self-explanatory.
 5. **No new runtime dependency** without an explicit ADR in
    `docs/decisions/`. Optional dependencies go in `pyproject.toml` extras.
-6. **No secrets, tokens, or credentials** in any file. Use `config/` or
-   environment variables.
-7. **No agent may modify CI workflows, `pyproject.toml`, `AGENTS.md`, or
-   `docs/decisions/` without explicit human approval in the PR.**
+6. **No secrets, tokens, or credentials** in any file. Use `config/settings.py`
+   (Pydantic Settings) or environment variables.
+7. **No agent may modify CI workflows, `pyproject.toml`, `AGENTS.md`,
+   or `docs/decisions/` without explicit human approval in the PR.**
 8. **Follow the dependency rules in §4.** Violations are blocked by
    `import-linter` in CI.
 9. **Tests must not hit the network.** Use fixtures, `responses`, or
@@ -116,15 +118,17 @@ If you believe a new edge is needed, open an ADR first.
 
 ---
 
-## 5. Commands (run in this order)
+## 5. Commands (run these, in this order)
+
+Replace placeholders only if you adopt a different toolchain; then update
+this section AND `.github/workflows/ci.yml` in the same PR.
 
 ```bash
 # Setup
-pip install -e ".[dev]"
+uv sync --all-extras --dev
 
 # Lint + format
-ruff check src/ tests/
-ruff format --check src/ tests/
+ruff check . && ruff format --check .
 
 # Type check
 mypy src
@@ -148,20 +152,20 @@ If you add a command, add it to both Makefile and CI. Never one alone.
 
 ## 6. Code conventions
 
-· Style: ruff (config in pyproject.toml). Do not reformat unrelated lines.
-· Types: full annotations on public functions. mypy strict mode enabled.
+· Style: ruff (config in ruff.toml). Do not reformat unrelated lines.
+· Types: full annotations on public functions. mypy strict mode is planned.
 · Docstrings: Google style. Public functions need Args, Returns,
   Raises (if applicable), and an Example for anything non-obvious.
 · Errors: raise subclasses of ds_toolbox.core.exceptions.DSToolboxError.
   Never raise bare Exception. Never swallow exceptions silently.
 · Logging: use ds_toolbox.observability.logger.get_logger(__name__).
   Never print(). Never logging.getLogger directly.
-· Config: read via ds_toolbox.config, never os.environ directly
-  outside config/.
+· Config: read config via ds_toolbox.config.settings.Settings, never
+  os.environ directly outside config/.
 · DataFrames: prefer polars where performance matters; pandas is
   acceptable at API boundaries. Document the choice per module.
 · Determinism: any function with randomness accepts random_state.
-· No global mutable state. Pass dependencies explicitly.
+· No globals that hold state across calls. Pass dependencies explicitly.
 
 ---
 
@@ -250,13 +254,14 @@ GitHub workflow for PIVS:
 
 ## 11. Deeper context
 
-Consult these before non-trivial work:
+Agents should consult these before non-trivial work:
 
 · docs/architecture.md — target architecture and rationale.
 · docs/roadmap.md — current phase and priorities.
 · docs/decisions/ — all ADRs (read the most recent 3 before proposing
   structural changes).
-· .github/instructions/*.md — path-scoped rules.
+· .github/instructions/*.md — path-scoped rules (loaded when editing
+  matching paths).
 · CONTRIBUTING.md — human-facing summary of §6–§9.
 
 ---
