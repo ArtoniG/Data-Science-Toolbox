@@ -61,57 +61,58 @@ Non-goals (do not add these to core):
 Each directory has ONE responsibility. Do not mix.
 
 ```
+
 ds-toolbox/
 ├── src/ds_toolbox/
-│   ├── init.py            # public re-exports only; no logic
-│   ├── py.typed               # PEP 561 marker; keep present
-│   ├── core/                  # base classes, exceptions, shared types
-│   ├── config/                # Pydantic Settings; env + YAML loading
-│   ├── io/                    # readers/writers (parquet, csv, cloud)
-│   ├── validation/            # pandera schemas, data contracts
-│   ├── eda/                   # profiling, summaries
-│   ├── governance/            # model cards, quality gates, reason codes
-│   ├── observability/         # logging, decorators, (future) tracing
-│   ├── metrics/               # supervised, unsupervised, stability, genai
-│   ├── transformers/          # sklearn-compatible feature transformers
-│   ├── mlops/                 # tracking, registry, serving, pipelines
-│   ├── agentic/               # [FILL: scope if in v0; else "future"]
-│   └── viz/                   # plots, shared theme
-├── tests/                     # mirrors src/ one-to-one
-├── examples/                  # runnable notebooks/scripts per use case
-├── docs/                      # mkdocs site + ADRs + architecture
-├── .github/workflows/         # CI (ci.yml, publish.yml)
-├── pyproject.toml
-├── ruff.toml
-├── .pre-commit-config.yaml
-├── Makefile
-├── CHANGELOG.md
-├── CONTRIBUTING.md
-├── SECURITY.md
-├── LICENSE
+│   ├── init.py            public re-exports only; no logic
+│   ├── py.typed               PEP 561 marker; keep present
+│   ├── core/                  base classes, exceptions, shared types
+│   ├── config/                Pydantic Settings; env + YAML loading
+│   ├── io/                    readers/writers (parquet, csv, cloud)
+│   ├── validation/            pandera schemas, data contracts
+│   ├── eda/                   profiling, summaries
+│   ├── governance/            model cards, quality gates, reason codes
+│   ├── observability/         logging, decorators, (future) tracing
+│   ├── metrics/               supervised, unsupervised, stability, genai
+│   ├── transformers/          sklearn-compatible feature transformers
+│   ├── mlops/                 tracking, registry, serving, pipelines
+│   ├── agentic/               tools, memory, tracing, evals
+│   └── viz/                   plots, shared theme
+├── tests/                     mirrors src/ one-to-one
+├── examples/                  runnable notebooks/scripts per use case
+├── docs/                      mkdocs site + ADRs + architecture
+├── .github/
+│   ├── workflows/             ci.yml, publish.yml
+│   ├── prompts/               PIVS workflows (see §9)
+│   ├── instructions/          path-scoped rules
+│   └── ISSUE_TEMPLATE/
+├── pyproject.toml, ruff.toml, .pre-commit-config.yaml, Makefile
+├── AGENTS.md, CHANGELOG.md, CONTRIBUTING.md, SECURITY.md, LICENSE
 └── README.md
+
 ```
 
 ---
 
 ## 4. Module dependency rules (enforced by import-linter)
 
-Imports flow **downward only**. If an arrow is missing, it is forbidden.
+Imports flow downward only. If an arrow is missing, it is forbidden.
 
 ```
-agentic   → mlops → metrics → transformers → validation → io → config → core
-viz       → core
+
+agentic    → mlops → metrics → transformers → validation → io → config → core
+viz        → core
 governance → metrics → core
 observability → core
-eda       → io → validation → core
+eda        → io → validation → core
+
 ```
 
 Additional rules:
-
-- `core/` imports **nothing** from `ds_toolbox`.
+- `core/` imports nothing from `ds_toolbox`.
 - `config/` imports only `core/`.
-- No module imports `agentic/` except `agentic/` itself and `__init__.py`.
-- Circular imports are always a bug — refactor, do not suppress.
+- No module imports `agentic/` except itself and `__init__.py`.
+- Circular imports are always a bug — refactor, never suppress.
 
 If you believe a new edge is needed, open an ADR first.
 
@@ -136,9 +137,12 @@ mypy src
 lint-imports
 
 # Tests
-pytest -q --cov=ds_toolbox --cov-fail-under=80
+pytest
 
-# Everything (what CI runs)
+# Security
+bandit -q -r src/
+
+# Everything at once (what CI runs)
 make check
 ```
 
@@ -168,15 +172,15 @@ If you add a command, add it to both Makefile and CI. Never one alone.
 ## 7. Testing conventions
 
 · Location: tests/<module_path>/test_<file>.py, mirroring src/.
-· Framework: pytest. Fixtures in tests/conftest.py (root) and
-  per-module conftest.py when scoped.
+· Framework: pytest. Fixtures in tests/conftest.py and per-module.
 · Structure: Arrange / Act / Assert, separated by blank lines.
 · Naming: test_<behavior>_<condition>_<expected>.
-· Required per public symbol: at least one happy path and one
-  error/edge test.
-· Coverage target: 100% lines. CI fails below.
-· Markers: @pytest.mark.integration for tests hitting real services
-  (skipped by default locally, run in CI nightly).
+· Required per public symbol: one happy path and one error/edge test.
+· Coverage target: 80% lines (see [tool.coverage.report]). Enforced by
+  make coverage-gate once the foundation stabilizes; until then, make
+    check runs coverage as report-only.
+· Markers: @pytest.mark.integration for real-service tests (skipped
+  locally, run in CI nightly). @pytest.mark.slow for >1s tests.
 · No network in unit tests. No real credentials anywhere.
 
 ---
@@ -191,29 +195,46 @@ If you add a command, add it to both Makefile and CI. Never one alone.
 
 ---
 
-## 9. Pull request workflow
+## 9. Ship cycle — Plan → Implement → Verify → Ship (PIVS)
 
-1. Issue first. Every PR references an issue (Closes #N).
-2. Branch name: feat/…, fix/…, docs/…, refactor/…, chore/….
-3. Commit style: Conventional Commits
-   (feat(transformers): add …). Squash on merge.
-4. PR description must include:
-   · What changed and why
-   · Which module(s) touched
-   · How it was tested
-   · Any dependency/API changes
-   · Checklist from the PR template
-5. CI must be green before review request.
-6. Reviewers: at least one human. Agent self-approval is not accepted.
-7. Size: target <400 changed lines. Split larger PRs.
+Every non-trivial change follows PIVS. Do not collapse steps.
+
+1. Plan. Open an issue using the Feature template. Fill the ## Plan
+   section fully: approach, files to touch, tests to add, risks. The plan
+   is reviewed and approved before any code is written. Trivial changes
+   (typos, single-line docs) may skip the issue, but the commit must
+   reference the eventual PR.
+2. Implement. One module per PR. Every commit references the issue.
+   Stay under 400 changed lines; if the plan exceeds that, split the issue
+   in the Plan step, not later.
+3. Verify. CI must be green on all gates: ruff, mypy, pytest with
+   coverage, import-linter, bandit. Local make check output must match CI.
+4. Ship. Merge to main, add CHANGELOG under ## Unreleased, then run
+   /release for version bump, tag, and publish.
+
+Prompt files under .github/prompts/ encode this cycle. Agents must
+prefer them over improvising:
+
+· /scaffold-module — steps 1–2 for a new module
+· /add-public-api — step 2 for any public symbol change
+· /debug-ci — step 3 recovery loop when CI is red
+· /release — step 4
+
+GitHub workflow for PIVS:
+
+· Issue created on phone (dictate it — see §13)
+· Plan reviewed in the issue thread
+· PR opened from the issue; CI runs; human approves
+· Squash-merge on green
+· /release runs on main only
 
 ---
 
 ## 10. What agents MUST NOT do
 
 · Rewrite files outside the scope of the current issue.
-· Introduce new dependencies, new modules, or new top-level packages
-  without an ADR and human approval.
+· Introduce new dependencies, modules, or top-level packages without an
+  ADR and human approval.
 · Delete or weaken tests to make CI pass.
 · Change pyproject.toml, AGENTS.md, .github/workflows/*, or
   docs/decisions/* without human approval.
@@ -222,7 +243,12 @@ If you add a command, add it to both Makefile and CI. Never one alone.
 · Fabricate API behavior — if unsure, open an issue and stop.
 · Commit secrets, API keys, or environment dumps.
 · Refactor while fixing a bug. Separate PRs.
-· Make claims about performance without a benchmark in examples/benchmarks/.
+· Make performance claims without a benchmark in examples/benchmarks/.
+· Run git push, git tag, pip install, or any dependency-changing
+  command without explicit human approval in the current turn.
+· Approve or merge their own PR. Agents may summarize; a human reviews.
+· Modify .vscode/settings.json or .pre-commit-config.yaml without
+  approval.
 
 ---
 
@@ -251,10 +277,34 @@ Agents should consult these before non-trivial work:
 
 ---
 
-<!-- This file is versioned. Bump the "Last reviewed" line on any change. -->
+## 13. Permission modes and mobile workflow
 
-Last reviewed: 2026-10-22 by Artoni
+Permission defaults (VS Code / Copilot)
 
-```
+Action Mode
+Edit files in src/ and tests/ Auto-approved
+Format on save (ruff via VS Code) Auto
+Run make lint, make type, make test, make imports Auto-approved
+git commit Auto-approved
+git push, git tag Ask
+pip install, dependency changes Ask
+Modify pyproject.toml, CI, AGENTS.md, docs/decisions/ Ask + PR review
+Delete files Ask
+Anything under ~/.ssh, ~/.aws, .env* Deny
+
+Mirror this in .vscode/settings.json where VS Code supports it. Where a
+key is absent, VS Code defaults to "ask" — safe.
+
+Mobile workflow
+
+· Author issues by voice. Use OS keyboard dictation (iOS/Android)
+  inside GitHub Mobile. The Feature template's four required fields map
+  to a 3–5 minute dictation.
+· Review PRs on GitHub Mobile. Diff view + CI status is sufficient for
+  the review gate. Do not edit code on mobile.
+· Run agent sessions in Codespaces (120 core-hours/month free). Treat
+  Codespaces as the desktop; the phone as the review surface.
+· Never git push from the phone. Push from Codespaces after
+  make check is green, so CI is confirmation, not discovery.
 
 ---
