@@ -1,5 +1,5 @@
 """
-src/credit_toolbox/metrics/unsupervised.py
+src/ds_toolbox/metrics/unsupervised.py
 
 Core statistical metrics for Unsupervised Learning (Clustering and Segmentation).
 Used primarily in credit risk for behavioral profiling, vintage analysis segmentation, 
@@ -10,9 +10,9 @@ for indices not natively supported by Scikit-Learn.
 import numpy as np
 from sklearn.metrics import pairwise_distances, silhouette_score
 
-from credit_toolbox.core.exceptions import MetricCalculationError
-from credit_toolbox.core.types import ArrayLike
-from credit_toolbox.logging.decorators import log_execution_time
+from ds_toolbox.core.exceptions import MetricCalculationError
+from ds_toolbox.core.types import ArrayLike
+from ds_toolbox.logging.decorators import log_execution_time
 
 
 @log_execution_time

@@ -1,5 +1,5 @@
 """
-src/credit_toolbox/metrics/stability.py
+src/ds_toolbox/metrics/stability.py
 
 Calculates distribution drift metrics for models and features in production.
 Implements the Population Stability Index (PSI) for continuous model scores and the 
@@ -11,9 +11,9 @@ data from crashing production monitoring jobs.
 import numpy as np
 import pandas as pd
 
-from credit_toolbox.core.exceptions import MetricCalculationError
-from credit_toolbox.core.types import ArrayLike, DriftThresholds, PSIResult
-from credit_toolbox.logging.decorators import log_execution_time
+from ds_toolbox.core.exceptions import MetricCalculationError
+from ds_toolbox.core.types import ArrayLike, DriftThresholds, PSIResult
+from ds_toolbox.logging.decorators import log_execution_time
 
 
 def _compute_psi_core(

@@ -1,5 +1,5 @@
 """
-src/credit_toolbox/metrics/genai.py
+src/ds_toolbox/metrics/genai.py
 
 Deterministic evaluation metrics for Generative AI in Credit Risk.
 Uses the "LLM-as-a-Judge" pattern with strict Pydantic guardrails via Instructor.
@@ -11,8 +11,8 @@ from typing import Any, Type, TypeVar
 
 from pydantic import BaseModel, Field
 
-from credit_toolbox.core.exceptions import CreditToolboxError, GenAIGuardrailError
-from credit_toolbox.logging.decorators import log_execution_time
+from ds_toolbox.core.exceptions import CreditToolboxError, GenAIGuardrailError
+from ds_toolbox.logging.decorators import log_execution_time
 
 # Graceful degradation: If a client installs the core SDK without the [genai] extra,
 # we shouldn't crash their entire application upon importing this module.

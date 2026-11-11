@@ -147,20 +147,19 @@ class ArtifactExporter:
     def _generate_model_card(self, md_path: Path) -> None:
         """Generates a high-level Markdown compliance summary."""
         md_content = f"""# Model Card
-        
+
 **Model Name:** {self.model_name}
 **Author:** Guilherme Artoni
-**Organization:** Advanced Analytics 
+**Organization:** Advanced Analytics
 **Compilation Date:** 2026-09-27
 
 ## System Architecture
+
 This pipeline enforces deterministic mathematical constraints prior to production deployment. All features have passed Phase 6 Quality Gates for imputation, capping, and strict WOE monotonicity.
 
 ## Reproducibility
-The internal state of this model (boundaries, thresholds, weights) has been serialized. To recreate this Scikit-Learn Pipeline identically for auditing or future quantitative research:
 
-```bash
+The internal state of this model (boundaries, thresholds, weights) has been serialized. To recreate this Scikit-Learn Pipeline identically for auditing or future quantitative research:
 python reproduce_model.py
-```
-with open(md_path, "w") as f:
-f.write(md_content)
+"""
+        md_path.write_text(md_content)

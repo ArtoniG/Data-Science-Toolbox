@@ -1,6 +1,6 @@
 
 """
-src/credit_toolbox/metrics/supervised.py
+src/ds_toolbox/metrics/supervised.py
 
 Core statistical metrics for Supervised Learning in Credit Risk.
 Calculates traditional banking metrics ($KS$, $Gini$, $IV$) and modern ML metrics 
@@ -13,9 +13,9 @@ import pandas as pd
 from scipy.stats import ks_2samp
 from sklearn.metrics import brier_score_loss, roc_auc_score
 
-from credit_toolbox.core.exceptions import MetricCalculationError
-from credit_toolbox.core.types import ArrayLike, IVResult, KSResult
-from credit_toolbox.logging.decorators import log_execution_time
+from ds_toolbox.core.exceptions import MetricCalculationError
+from ds_toolbox.core.types import ArrayLike, IVResult, KSResult
+from ds_toolbox.logging.decorators import log_execution_time
 
 
 @log_execution_time
